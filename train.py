@@ -9,6 +9,7 @@ from model import CRNN
 import time 
 import torch 
 from sklearn.model_selection import train_test_split
+from EarlyStopping import EarlyStopping
 
 
 def collate_fn(batch): 
@@ -144,26 +145,27 @@ model = CRNN(num_classes=len(char_to_idx)+1).to(device)
 def train():
 
     criterion = nn.CTCLoss(
-    blank=0,
-    zero_infinity=True
-)
+        blank=0,
+        zero_infinity=True
+    )
     optimizer = optim.Adam(
-    model.parameters(),
-    lr=0.001,
-    weight_decay=1e-5
-)
+        model.parameters(),
+        lr=0.001,
+        weight_decay=1e-5
+    )
 
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-    optimizer,
-    mode="min",
-    factor=0.5,
-    patience=5
-)
+        optimizer,
+        mode="min",
+        factor=0.5,
+        patience=5
+    )
 
     epochs = 100
     start = time.time()
 
-    best_val_loss = float("inf")
+    os.makedirs("checkpoints", exist_ok=True)
+    early_stopping = EarlyStopping(patience=5, verbose=True, path='checkpoints/best_model.pth')
 
     for epoch in range(epochs):
 
@@ -204,9 +206,7 @@ def train():
 
             total_loss += loss.item()
 
-
         avg_train_loss = total_loss / len(train_loader)
-
 
         # ======================
         # VALIDATION PHASE
@@ -243,34 +243,28 @@ def train():
                 val_loss += loss.item()
 
         avg_val_loss = val_loss / len(val_loader)
-        scheduler.step(val_loss)
-
+        
+        scheduler.step(avg_val_loss)
 
         # ======================
-        # Save best model
+        # Print & Early Stopping
         # ======================
-        if avg_val_loss < best_val_loss:
-
-            best_val_loss = avg_val_loss
-
-            os.makedirs("checkpoints", exist_ok=True)
-
-            torch.save(
-                model.state_dict(),
-                "checkpoints/best_model.pth"
-            )
-
-
         print(f"Epoch {epoch+1}")
         print(f"Train Loss = {avg_train_loss:.4f}")
         print(f"Val Loss   = {avg_val_loss:.4f}")
+        
+        early_stopping(avg_val_loss, model)
+    
+        if early_stopping.early_stop:
+            print("🛑 Early stopping triggered. Training stopped!")
+            break
 
+    print("✅ Done! Your best model is saved inside 'checkpoints/' folder")
 
     end = time.time()
     print("Time:", end-start)
 
-
 # ======================
 # Run training
 # ======================
-train()
+# train()
