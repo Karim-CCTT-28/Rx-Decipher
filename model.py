@@ -9,24 +9,45 @@ class CRNN(nn.Module):
 
         self.cnn = nn.Sequential(
 
-            nn.Conv2d(1, 32, 3, padding=1),
-            nn.ReLU(),
+            nn.Conv2d(1, 64, 3, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
             nn.MaxPool2d(2),
 
-            nn.Conv2d(32, 64, 3, padding=1),
-            nn.ReLU(),
-            nn.MaxPool2d(2)
+            nn.Conv2d(64, 128, 3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
 
+            nn.Conv2d(128, 256, 3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+
+            nn.Conv2d(256, 256, 3, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d((2,1)),
+
+            nn.Conv2d(256, 512, 3, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU(inplace=True),
+
+            nn.Conv2d(512, 512, 3, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d((2,1))
         )
 
         self.lstm = nn.LSTM(
-            # 64 channels × 32 height = 2048
-            input_size=64 * 32,
+            input_size=512 * 8,
             hidden_size=256,
             num_layers=2,
             bidirectional=True,
+            dropout=0.3,
             batch_first=True
         )
+
+        self.dropout = nn.Dropout(0.3)
 
         self.fc = nn.Linear(
             512,
@@ -48,6 +69,8 @@ class CRNN(nn.Module):
         )
 
         x, _ = self.lstm(x)
+
+        x = self.dropout(x)
 
         x = self.fc(x)
 
